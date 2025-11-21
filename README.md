@@ -20,4 +20,3 @@ This repo contains three key files/folders for deploying Envoy Gateway with Helm
 - Edit `values.yaml` as needed.
 - Use `helm template` with the chart and values to generate a manifest.
 - Apply the manifest with `kubectl apply -f ...`.
-# teg-manifests
