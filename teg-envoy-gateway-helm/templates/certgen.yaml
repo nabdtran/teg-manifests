@@ -1,0 +1,56 @@
+{{- if .Values.certgen }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-certgen
+  namespace: '{{ .Release.Namespace }}'
+  labels:
+  {{- include "teg.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install, pre-upgrade
+  {{- if .Values.certgen.job.annotations }}
+    {{- toYaml .Values.certgen.job.annotations | nindent 4 -}}
+  {{- end }}
+spec:
+  backoffLimit: 1
+  completions: 1
+  parallelism: 1
+  template:
+    metadata:
+      labels:
+        app: certgen
+    spec:
+      containers:
+      - args:
+        - certgen
+        - --namespace
+        - {{ .Release.Namespace }}
+        image: {{ .Values.deployment.tegEnvoyGateway.image.repository }}:{{ .Values.deployment.tegEnvoyGateway.image.tag | default .Chart.AppVersion }}
+        imagePullPolicy: {{ .Values.deployment.tegEnvoyGateway.imagePullPolicy | default .Values.deployment.tegEnvoyGateway.image.pullPolicy }}
+        name: teg-certgen
+        {{- with .Values.certgen.job.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsGroup: 65532
+          runAsUser: 65532
+          seccompProfile:
+            type: RuntimeDefault
+      {{- with .Values.deployment.tegEnvoyGateway.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 6 }}
+      {{- end }}
+      restartPolicy: Never
+      serviceAccountName: {{ .Release.Name }}-certgen
+  {{- if not ( kindIs "invalid" .Values.certgen.job.ttlSecondsAfterFinished) }}
+  ttlSecondsAfterFinished: {{ .Values.certgen.job.ttlSecondsAfterFinished }}
+  {{- end }}
+{{- end }}

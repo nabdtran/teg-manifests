@@ -1,0 +1,22 @@
+{{- if .Values.redis }}
+{{- if ne .Values.redis.disabled true }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "redis.fullname" . }}
+  namespace: '{{ .Release.Namespace }}'
+  labels:
+    {{- include "teg.labels" . | nindent 4 }}
+    app: redis
+spec:
+  type: {{ .Values.redis.service.type }}
+  ports:
+  - port: {{ .Values.redis.service.port }}
+    targetPort: 6379
+    protocol: TCP
+    name: redis
+  selector:
+    {{- include "teg.selectorLabels" . | nindent 4 }}
+    app: redis
+{{- end }}
+{{- end }}

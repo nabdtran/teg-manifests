@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: teg-envoy-gateway
+  namespace: '{{ .Release.Namespace }}'
+  labels:
+  {{- include "teg.labels" . | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: teg-envoy-gateway
+  namespace: '{{ .Release.Namespace }}'
+  labels:
+    control-plane: teg-envoy-gateway
+  {{- include "teg.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.deployment.tegEnvoyGateway.replicas }}
+  selector:
+    matchLabels:
+      control-plane: teg-envoy-gateway
+    {{- include "teg.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        control-plane: teg-envoy-gateway
+      {{- include "teg.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.deployment.tegEnvoyGateway.pod.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .| trim | nindent 8 }}
+      {{- end }}
+      {{- with .Values.deployment.tegEnvoyGateway.pod.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.deployment.tegEnvoyGateway.pod.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- with .Values.deployment.tegEnvoyGateway.pod.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 6 }}
+      {{- end }}
+      containers:
+      - name: teg-envoy-gateway
+        args:
+        - serve
+        env:
+        - name: ENVOY_GATEWAY_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: KUBERNETES_CLUSTER_DOMAIN
+          value: {{ .Values.kubernetesClusterDomain }}
+        image: {{ .Values.deployment.tegEnvoyGateway.image.repository }}:{{ .Values.deployment.tegEnvoyGateway.image.tag | default .Chart.AppVersion }}
+        imagePullPolicy: {{ .Values.deployment.tegEnvoyGateway.imagePullPolicy | default .Values.deployment.tegEnvoyGateway.image.pullPolicy }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources: {{- toYaml .Values.deployment.tegEnvoyGateway.resources | nindent 10
+          }}
+        {{- with .Values.deployment.tegEnvoyGateway.container.securityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      {{- with .Values.deployment.tegEnvoyGateway.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 6 }}
+      {{- end }}
+      serviceAccountName: teg-envoy-gateway
+      terminationGracePeriodSeconds: 10

@@ -1,0 +1,93 @@
+{{- if .Values.redis }}
+{{- if ne .Values.redis.disabled true }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "redis.fullname" . }}
+  namespace: '{{ .Release.Namespace }}'
+  labels:
+    {{- include "teg.labels" . | nindent 4 }}
+    app: redis
+spec:
+  replicas: {{ .Values.redis.replicas }}
+  selector:
+    matchLabels:
+      {{- include "teg.selectorLabels" . | nindent 6 }}
+      app: redis
+  template:
+    metadata:
+      {{- with .Values.redis.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "teg.selectorLabels" . | nindent 8 }}
+        app: redis
+    spec:
+      {{- with .Values.redis.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.redis.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: redis
+        args:
+        - --tls-port
+        - "6379"
+        - --port
+        - "0"
+        - --tls-ca-cert-file
+        - /certs/ca.crt
+        - --tls-cert-file
+        - /certs/tls.crt
+        - --tls-key-file
+        - /certs/tls.key
+        {{- if ne .Values.redis.password "" }}
+        - --requirepass
+        - dummypassword
+        {{- end }}
+        securityContext:
+        {{- if .Values.redis.securityContext }}
+          {{- toYaml .Values.redis.securityContext | nindent 10 }}
+        {{- else }}
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: true
+          runAsUser: 999
+          runAsGroup: 999
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+        {{- end }}
+        image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag | default "latest" }}"
+        imagePullPolicy: {{ .Values.redis.image.pullPolicy }}
+        resources:
+          {{- toYaml .Values.redis.resources | nindent 10 }}
+        volumeMounts:
+        - mountPath: /certs
+          name: certs
+          readOnly: true
+      {{- with .Values.redis.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.redis.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.redis.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: certs
+        secret:
+          secretName: redis-tls
+{{- end }}
+{{- end }}

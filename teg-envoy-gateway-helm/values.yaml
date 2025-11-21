@@ -1,0 +1,160 @@
+# Default values for teg-envoy-gateway.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# -- Tetrate Enterprise Gateway for Envoy control plane components configuration options
+# @default -- -
+deployment:
+  # -- Tetrate Enterprise Gateway for Envoy deployment configuration
+  # @default -- -
+  tegEnvoyGateway:
+    # -- Tetrate Enterprise Gateway for Envoy image configuration
+    # @default -- -
+    image:
+      # -- Tetrate Enterprise Gateway for Envoy image repository
+      repository: tetrate/teg-envoy-gateway
+      # -- Tetrate Enterprise Gateway for Envoy image tag
+      tag: 'v1.5.1'
+      # -- Tetrate Enterprise Gateway for Envoy image pull policy
+      pullPolicy: IfNotPresent
+      # -- Tetrate Enterprise Gateway for Envoy image pull secrets
+      pullSecrets: []
+    # -- Tetrate Enterprise Gateway for Envoy replicas in cluster
+    replicas: 1
+    # -- Tetrate Enterprise Gateway for Envoy pod configuration
+    pod:
+      nodeSelector: {}
+      affinity: {}
+      topologySpreadConstraints: []
+      tolerations: []
+    # -- Tetrate Enterprise Gateway for Envoy con configuration
+    container:
+      securityContext:
+        readOnlyRootFilesystem: true
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+        privileged: false
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+    # -- Tetrate Enterprise Gateway for Envoy deployment resources
+    # More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+    resources:
+      # @ignore
+      limits:
+        cpu: 500m
+        memory: 1024Mi
+      # @ignore
+      requests:
+        cpu: 100m
+        memory: 256Mi
+
+# -- TEG Certificate Generation Job configuration used to generate
+# TLS Certificates for Redis
+certgen:
+  job:
+    annotations: {}
+    resources: {}
+    ttlSecondsAfterFinished: 30
+  rbac:
+    annotations: {}
+    labels: {}
+
+# -- TEG Redis deployment configuration
+# @default -- -
+redis:
+# -- Redis enabled by default
+  disabled: false
+
+# -- Redis replicas to deploy
+  replicas: 1
+
+# -- default user auth password for redis deployment
+  password: ""
+
+  # -- Redis image configuration
+  # @default --  -
+  image:
+    # -- Redis image repository
+    repository: redis
+    # -- Redis image tag
+    tag: 7.4.2
+    # -- Redis image pull policy in cluster
+    pullPolicy: IfNotPresent
+    # -- Redis image pull secrets
+    pullSecrets: []
+
+  # -- Redis deployment resources
+  # More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+  resources:
+    # @ignore
+    limits:
+      cpu: 1500m
+      memory: 512Mi
+    # @ignore
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+  # -- Redis service configuration
+  # @default -- -
+  service:
+    # -- Redis service type
+    type: ClusterIP
+    # -- Redis service exposed port
+    port: 6379
+
+# -- Envoy Gateway installation configuration.
+# Detailed configuration documentation can be found here: https://github.com/envoyproxy/gateway/tree/main/charts/gateway-helm
+# Tetrate Enterprise Gateway for Envoy configures underlying Envoy gateway installation configuration. In case there are any conflicts,
+# between TEG configuration and EG configuration provided here, EG configuration is given precedence.
+gateway-helm:
+  config:
+    envoyGateway:
+      extensionApis:
+        enableEnvoyPatchPolicy: true
+      provider:
+        kubernetes:
+          overwrite_control_plane_certs: false
+          rateLimitDeployment:
+            container:
+              env:
+                - name: LOG_FORMAT
+                  value: json
+                - name: REDIS_HEALTH_CHECK_ACTIVE_CONNECTION
+                  value: "false"
+                - name: REDIS_TYPE
+                  value: SINGLE
+                - name: REDIS_TLS_CACERT
+                  value: /redis-certs/ca.crt
+      rateLimit:
+        backend:
+          type: Redis
+          redis:
+            # -- If you change the namespace or name of the Redis Service, change this to match
+            url: teg-redis.envoy-gateway-system.svc.cluster.local:6379
+            tls:
+              certificateRef:
+                name: redis-tls
+
+config:
+  # -- Configuration for every Envoy Proxy replica in each Gateway which uses the default 'teg' GatewayClass (which references the EnvoyProxy resource made from these values).
+  # This is merged with defaults to product an EnvoyProxy object (https://gateway.envoyproxy.io/latest/api/extension_types/#envoyproxyspec).
+  # Values specified here take precedence.
+  envoyProxy:
+    logging:
+      level:
+        # -- All Envoy log areas to log at level warn
+        # Individual areas can be altered with eg `oauth2: debug`
+        default: warn
+    # The default Envoy image to use for the EnvoyProxy resource.
+    # provider:
+    #   type: Kubernetes
+    #   kubernetes:
+    #     envoyDeployment:
+    #       container:
+    #         image: envoyproxy/envoy-dev:latest

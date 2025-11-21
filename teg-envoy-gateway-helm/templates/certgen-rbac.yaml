@@ -1,0 +1,66 @@
+{{- if .Values.certgen }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Release.Name }}-certgen
+  namespace: '{{ .Release.Namespace }}'
+  annotations:
+    "helm.sh/hook": pre-install, pre-upgrade
+  {{- if .Values.certgen.rbac.annotations }}
+    {{- toYaml .Values.certgen.rbac.annotations | nindent 4 -}}
+  {{- end }}
+  labels:
+  {{- include "teg.labels" . | nindent 4 }}
+  {{- if .Values.certgen.rbac.labels }}
+  {{- toYaml .Values.certgen.rbac.labels | nindent 4 }}
+  {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ .Release.Name }}-certgen
+  namespace: '{{ .Release.Namespace }}'
+  labels:
+  {{- include "teg.labels" . | nindent 4 }}
+  {{- if .Values.certgen.rbac.labels }}
+  {{- toYaml .Values.certgen.rbac.labels | nindent 4 }}
+  {{- end }}
+  annotations:
+    "helm.sh/hook": pre-install, pre-upgrade
+  {{- if .Values.certgen.rbac.annotations }}
+    {{- toYaml .Values.certgen.rbac.annotations | nindent 4 -}}
+  {{- end }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - create
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ .Release.Name }}-certgen
+  namespace: '{{ .Release.Namespace }}'
+  labels:
+  {{- include "teg.labels" . | nindent 4 }}
+  {{- if .Values.certgen.rbac.labels }}
+  {{- toYaml .Values.certgen.rbac.labels | nindent 4 }}
+  {{- end }}
+  annotations:
+    "helm.sh/hook": pre-install, pre-upgrade
+  {{- if .Values.certgen.rbac.annotations }}
+    {{- toYaml .Values.certgen.rbac.annotations | nindent 4 -}}
+  {{- end }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ .Release.Name }}-certgen
+subjects:
+- kind: ServiceAccount
+  name: {{ .Release.Name }}-certgen
+  namespace: '{{ .Release.Namespace }}'
+{{- end }}

@@ -1,0 +1,17 @@
+apiVersion: v2
+appVersion: v1.5.1
+dependencies:
+- name: gateway-helm
+  repository: oci://docker.io/envoyproxy
+  version: v1.5.4
+description: The Helm chart for Tetrate Enterprise Gateway for Envoy
+home: https://tetrate.io/
+icon: https://docs.tetrate.io/logos/tetrate.svg
+keywords:
+- gateway-api
+- envoyproxy
+- envoy-gateway
+- eg
+name: teg-envoy-gateway-helm
+type: application
+version: v1.5.1

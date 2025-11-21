@@ -1,0 +1,19 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: teg
+  labels:
+  {{- include "teg.labels" . | nindent 4 }}
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+  parametersRef:
+    group: gateway.envoyproxy.io
+    kind: EnvoyProxy
+    name: teg-envoy-proxy
+    namespace: '{{ .Release.Namespace }}'
+---
+{{ $baseEnvoyConfig := include "envoy-configuration" . | fromYaml }}
+{{ $userEnvoyConfig := dict "spec" .Values.config.envoyProxy }}
+# Favours userEnvoyConfig on conflicts
+{{ $mergedEnvoyConfig := merge $userEnvoyConfig $baseEnvoyConfig }}
+{{- toYaml $mergedEnvoyConfig }}
